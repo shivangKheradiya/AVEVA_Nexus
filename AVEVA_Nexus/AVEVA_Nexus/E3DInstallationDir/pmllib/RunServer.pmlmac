@@ -1,0 +1,11 @@
+﻿import 'C:\Program Files (x86)\AVEVA\Everything3D2.10\AVEVA_Nexus\AVEVA_Nexux_Addin'
+handle any
+endhandle
+
+using namespace 'AVEVA_Nexus.Config' 
+!hostConfig = object HostConfig()
+
+-- Configure and start new HTTP Listener
+!HostConfig.SetPrefix('http://localhost:5001/')
+!HostConfig.start()
+!HostConfig.stop()
