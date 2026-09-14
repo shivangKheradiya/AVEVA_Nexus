@@ -1,0 +1,13 @@
+﻿define object PmlObject
+
+endobject
+
+define method .PmlObject()
+
+endmethod
+
+define method .getArray(!arrayVariableName is string) is array
+    !result = |!!$!arrayVariableName|
+    return $!result
+endmethod
+
