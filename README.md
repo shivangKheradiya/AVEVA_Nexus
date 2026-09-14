@@ -1,6 +1,6 @@
 # AVEVA_Nexus
 
-Universal HTTP Gateway for AVEVA Connecting Applications with other systems, applications, and AI.
+Universal HTTP Gateway for Connecting AVEVA Applications with other systems, applications, and AI.
 
 ---
 
