@@ -93,6 +93,7 @@
     <Compile Include="Http\RouteContext.cs" />
     <Compile Include="Http\Router.cs" />
     <Compile Include="Config\HostConfig.cs" />
+    <Compile Include="Integration\AvevaGate.cs" />
     <Compile Include="Integration\AvevaProvider.cs" />
     <Compile Include="Integration\IAvevaProvider.cs" />
     <Compile Include="Logging\NexusLogger.cs" />

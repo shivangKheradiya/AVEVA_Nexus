@@ -1,13 +1,6 @@
-﻿using Aveva.Core.Commands;
-using Aveva.Core.PMLNet;
-using Aveva.Core.Utilities.CommandLine;
-using AVEVA_Nexus.Exceptions;
+﻿using AVEVA_Nexus.Exceptions;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using ac = Aveva.Core.Utilities.CommandLine;
 using Aveva.Core.Database;
 
@@ -17,100 +10,100 @@ namespace AVEVA_Nexus.Integration
     {
         private ac.Command getCommand = ac.Command.CreateCommand("");
 
+        // Runs a PML command. RunInPdms() returns false for an invalid command (Command.Error carries no text),
+        // so a failure is reported with the command itself.
         public bool ExecuteCommand(string command)
         {
-            ac.Command tempCommand = ac.Command.CreateCommand(command);
-            try
+            return AvevaGate.Run(() =>
             {
-                tempCommand.RunInPdms();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                throw new NexusException( ex.Message + "\n" + ex.StackTrace);
-            }
+                try
+                {
+                    ac.Command tempCommand = ac.Command.CreateCommand(command);
+                    if (!tempCommand.RunInPdms())
+                    {
+                        ac.Command.OutputAndClearError();
+                        throw new NexusException("PML command failed: " + command, 400);
+                    }
+                    return true;
+                }
+                catch (NexusException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    throw new NexusException(ex.Message + "\n" + ex.StackTrace);
+                }
+            });
         }
 
         public string GetStringVariable(string name)
         {
-            if (!VariableExists(name))
+            return AvevaGate.Run(() =>
             {
-                throw new VariableNotFoundException(name);
-            }
-
-            try
-            {
-                return getCommand.GetPMLVariableString(name.ToUpper());
-            }
-            catch (Exception ex)
-            {
-                throw new NexusException(ex.Message + "\n" + ex.StackTrace);
-            }
+                RequireVariable(name);
+                return Guarded(() => getCommand.GetPMLVariableString(name.ToUpper()));
+            });
         }
 
         public double GetRealVariable(string name)
         {
-            if (!VariableExists(name))
+            return AvevaGate.Run(() =>
             {
-                throw new VariableNotFoundException(name);
-            }
-
-            try
-            {
-                return getCommand.GetPMLVariableReal(name.ToUpper());
-            }
-            catch (Exception ex)
-            {
-                throw new NexusException(ex.Message + "\n" + ex.StackTrace);
-            }
+                RequireVariable(name);
+                return Guarded(() => getCommand.GetPMLVariableReal(name.ToUpper()));
+            });
         }
 
         public bool GetBooleanVariable(string name)
         {
-            if (!VariableExists(name))
+            return AvevaGate.Run(() =>
             {
-                throw new VariableNotFoundException(name);
-            }
-
-            try
-            {
-                return getCommand.GetPMLVariableBoolean(name.ToUpper());
-            }
-            catch (Exception ex)
-            {
-                throw new NexusException(ex.Message + "\n" + ex.StackTrace);
-            }
+                RequireVariable(name);
+                return Guarded(() => getCommand.GetPMLVariableBoolean(name.ToUpper()));
+            });
         }
 
-
+        // Elements come back in PML order (GetStringArrayFromPML needs the "!!" prefix; verified on E3D 3.1).
         public object[] GetArrayVariable(string name)
         {
-            if (!VariableExists(name))
+            return AvevaGate.Run(() =>
             {
-                throw new VariableNotFoundException(name);
-            }
-
-            var PmlObject = PMLNetAny.createInstance("PMLOBJECT", new object[] { }, 0, true);
-            object pmlArrayObject = new Hashtable();
-            PmlObject.invokeMethod("getArray", new object[] { name }, 1, ref pmlArrayObject, true, true);
-
-            List<object> result = new List<object>();
-
-            foreach (DictionaryEntry item in (Hashtable)pmlArrayObject)
-            {
-                result.Add(item.Value);
-            }
-
-            return result.ToArray();
+                RequireVariable(name);
+                return Guarded(() => ac.Command.GetStringArrayFromPML("!!" + name).Cast<object>().ToArray());
+            });
         }
 
         public object GetAttribute(
             string dbref,
             string attribute)
         {
-            DbAttribute dbAttribute = DbAttribute.GetDbAttribute(attribute);
-            DbElement dbElement = DbElement.GetElement(dbref);
-            return dbElement.GetAsString(dbAttribute);
+            return AvevaGate.Run<object>(() =>
+            {
+                DbAttribute dbAttribute = DbAttribute.GetDbAttribute(attribute);
+                DbElement dbElement = DbElement.GetElement(dbref);
+                return dbElement.GetAsString(dbAttribute);
+            });
+        }
+
+        private void RequireVariable(string name)
+        {
+            if (!VariableExists(name))
+            {
+                throw new VariableNotFoundException(name);
+            }
+        }
+
+        private static T Guarded<T>(Func<T> read)
+        {
+            try
+            {
+                return read();
+            }
+            catch (Exception ex)
+            {
+                throw new NexusException(ex.Message + "\n" + ex.StackTrace);
+            }
         }
 
         private bool VariableExists(string name)

@@ -10,6 +10,7 @@ namespace AVEVA_Nexus.Validation
     {
         static readonly Regex TypeRx = new Regex("^[A-Za-z0-9_]{1,32}$");
         static readonly Regex AttributeRx = new Regex("^[A-Za-z0-9_:\\-]{1,64}$"); // '-' is needed for UDAs such as :TP-MTO-AREA
+        static readonly Regex VariableNameRx = new Regex("^[A-Za-z0-9_.]{1,64}$");
         static readonly Regex DbRefRx = new Regex("^=[0-9]+/[0-9]+$");
         static readonly Regex NameRx = new Regex("^/[A-Za-z0-9_\\-/.]{1,200}$");
 
@@ -35,6 +36,14 @@ namespace AVEVA_Nexus.Validation
             string v = (value ?? "").Trim();
             if (!AttributeRx.IsMatch(v)) throw Bad("attribute name");
             return v.ToUpperInvariant();
+        }
+
+        // Name of a global PML variable (without "!!"); it is interpolated into PML commands.
+        public static string VariableName(string value)
+        {
+            string v = (value ?? "").Trim();
+            if (!VariableNameRx.IsMatch(v)) throw Bad("variable name");
+            return v;
         }
 
         public static string DbRef(string value)

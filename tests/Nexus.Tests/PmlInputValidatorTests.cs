@@ -39,6 +39,18 @@ namespace Nexus.Tests
                     Rejects(() => PmlInputValidator.Attribute(bad), "Attribute(" + bad + ")");
             });
 
+            Program.Run("VariableName_accepts_plain_names", () =>
+            {
+                Check.Equal("nexusTexto", PmlInputValidator.VariableName("nexusTexto"), "plain");
+                Check.Equal("my_var.1", PmlInputValidator.VariableName("my_var.1"), "underscore and dot");
+            });
+
+            Program.Run("VariableName_rejects_injection", () =>
+            {
+                foreach (var bad in new[] { "x ) ; x", "x;y", "", null, "a b", "x\ny", "$M/x", new string('a', 65) })
+                    Rejects(() => PmlInputValidator.VariableName(bad), "VariableName(" + bad + ")");
+            });
+
             Program.Run("DbRef_accepts_valid_ref", () =>
                 Check.Equal("=201346360/1", PmlInputValidator.DbRef("=201346360/1"), "ref"));
 

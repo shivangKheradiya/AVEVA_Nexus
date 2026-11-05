@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using AVEVA_Nexus.Exceptions;
 using AVEVA_Nexus.Models;
 using AVEVA_Nexus.Services;
 using Newtonsoft.Json;
@@ -22,7 +23,12 @@ namespace AVEVA_Nexus.Controllers
         public ApiResponse Execute(
             string json)
         {
-            ExecuteRequest request = JsonConvert.DeserializeObject<ExecuteRequest>(json);
+            ExecuteRequest request = string.IsNullOrWhiteSpace(json) ? null : JsonConvert.DeserializeObject<ExecuteRequest>(json);
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Command))
+            {
+                throw new NexusException("command is required", 400);
+            }
 
             bool result =
                 _service.Execute(
