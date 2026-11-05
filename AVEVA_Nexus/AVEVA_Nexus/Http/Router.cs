@@ -195,6 +195,27 @@ namespace AVEVA_Nexus.Http
             }
 
             if (segments.Length >= 3 &&
+                segments[2].Equals("Get", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireMethod(context, "POST");
+                return _element.Get(context.Body);
+            }
+
+            if (segments.Length >= 3 &&
+                segments[2].Equals("Children", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireMethod(context, "GET");
+                return _element.Children(context.Query["dbref"], context.Query["type"]);
+            }
+
+            if (segments.Length >= 3 &&
+                segments[2].Equals("AttributeList", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireMethod(context, "GET");
+                return _element.AttributeList(context.Query["type"]);
+            }
+
+            if (segments.Length >= 3 &&
                 segments[2].Equals(
                     "Attribute",
                     StringComparison.OrdinalIgnoreCase))

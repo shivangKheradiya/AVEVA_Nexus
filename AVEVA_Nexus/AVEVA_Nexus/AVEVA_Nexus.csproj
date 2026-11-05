@@ -98,6 +98,7 @@
     <Compile Include="Integration\IAvevaProvider.cs" />
     <Compile Include="Logging\NexusLogger.cs" />
     <Compile Include="Models\ApiResponse.cs" />
+    <Compile Include="Models\ChildrenResult.cs" />
     <Compile Include="Models\ExecuteRequest.cs" />
     <Compile Include="Models\GetRequest.cs" />
     <Compile Include="Models\QueryRequest.cs" />

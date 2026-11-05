@@ -132,6 +132,72 @@ namespace AVEVA_Nexus.Integration
             });
         }
 
+        public bool ElementExists(string dbref)
+        {
+            return AvevaGate.Run(() => DbElement.GetElement(dbref).IsValid);
+        }
+
+        private static DbElement RequireElement(string dbref)
+        {
+            DbElement element = DbElement.GetElement(dbref);
+            if (!element.IsValid)
+            {
+                throw new NexusException("Element " + dbref + " not found", 404);
+            }
+            return element;
+        }
+
+        private static string RefOf(DbElement element)
+        {
+            return element.GetAsString(DbAttribute.GetDbAttribute("REF"));
+        }
+
+        public string[] GetChildRefs(string dbref, string type)
+        {
+            return AvevaGate.Run(() =>
+            {
+                DbElement element = RequireElement(dbref);
+                if (type != null && !IsKnownType(type))
+                {
+                    throw new NexusException("Unknown element type '" + type + "'", 400);
+                }
+
+                var refs = new List<string>();
+                foreach (DbElement member in element.Members())
+                {
+                    if (type != null && !string.Equals(member.GetElementType().Name, type, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    refs.Add(RefOf(member));
+                }
+                return refs.ToArray();
+            });
+        }
+
+        public string GetOwnerRef(string dbref)
+        {
+            return AvevaGate.Run(() => RefOf(RequireElement(dbref).Owner));
+        }
+
+        public string[] GetAttributeNames(string type)
+        {
+            return AvevaGate.Run(() =>
+            {
+                if (!IsKnownType(type))
+                {
+                    throw new NexusException("Unknown element type '" + type + "'", 400);
+                }
+
+                DbElementType elementType = DbElementType.GetElementType(type);
+                return elementType.SystemAttributes()
+                    .Concat(elementType.GetAllUdas())
+                    .Select(a => a.Name)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            });
+        }
+
         public Dictionary<string, object> ReadAttributes(string dbref, IList<string> attributes)
         {
             return AvevaGate.Run(() =>

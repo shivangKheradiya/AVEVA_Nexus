@@ -32,6 +32,25 @@ namespace AVEVA_Nexus.Controllers
             };
         }
 
+        public ApiResponse Get(string json)
+        {
+            GetRequest request = string.IsNullOrWhiteSpace(json)
+                ? null
+                : JsonConvert.DeserializeObject<GetRequest>(json);
+
+            return new ApiResponse { Success = true, Data = _service.Get(request) };
+        }
+
+        public ApiResponse Children(string dbref, string type)
+        {
+            return new ApiResponse { Success = true, Data = _service.Children(dbref, type) };
+        }
+
+        public ApiResponse AttributeList(string type)
+        {
+            return new ApiResponse { Success = true, Data = _service.AttributeList(type) };
+        }
+
         public ApiResponse GetAttribute(
             string dbref,
             string attribute)
