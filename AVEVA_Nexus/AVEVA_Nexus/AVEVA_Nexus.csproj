@@ -98,7 +98,11 @@
     <Compile Include="Logging\NexusLogger.cs" />
     <Compile Include="Models\ApiResponse.cs" />
     <Compile Include="Models\ExecuteRequest.cs" />
+    <Compile Include="Models\GetRequest.cs" />
+    <Compile Include="Models\QueryRequest.cs" />
+    <Compile Include="Models\TableResult.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Query\Paging.cs" />
     <Compile Include="Http\SimpleHttpServer.cs" />
     <Compile Include="Services\ElementService.cs" />
     <Compile Include="Services\PmlService.cs" />
