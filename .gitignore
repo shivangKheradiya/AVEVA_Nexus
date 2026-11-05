@@ -427,3 +427,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# local scratch for executing-plans
+.superpowers/
+out/
+tests/**/__pycache__/
+.pytest_cache/
