@@ -102,6 +102,7 @@
     <Compile Include="Http\SimpleHttpServer.cs" />
     <Compile Include="Services\ElementService.cs" />
     <Compile Include="Services\PmlService.cs" />
+    <Compile Include="Validation\PmlInputValidator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="E3DInstallationDir\DesignAddins.xml" />
