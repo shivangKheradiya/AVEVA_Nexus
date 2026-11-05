@@ -1,5 +1,6 @@
 ﻿using AVEVA_Nexus.Exceptions;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using ac = Aveva.Core.Utilities.CommandLine;
 using Aveva.Core.Database;
@@ -83,6 +84,78 @@ namespace AVEVA_Nexus.Integration
                 DbAttribute dbAttribute = DbAttribute.GetDbAttribute(attribute);
                 DbElement dbElement = DbElement.GetElement(dbref);
                 return dbElement.GetAsString(dbAttribute);
+            });
+        }
+
+        // GetElementType("FOO") with an unknown name crashes the E3D session, so every type is checked against
+        // the list of real types first (cached; 1884 types on E3D 3.1).
+        private static HashSet<string> _typeNames;
+
+        private static bool IsKnownType(string type)
+        {
+            if (_typeNames == null)
+            {
+                _typeNames = new HashSet<string>(
+                    DbElementType.GetAllElementTypes().Select(t => t.Name),
+                    StringComparer.OrdinalIgnoreCase);
+            }
+            return _typeNames.Contains(type);
+        }
+
+        public string[] CollectRefs(string type, string scope, string where)
+        {
+            return AvevaGate.Run(() =>
+            {
+                if (!IsKnownType(type))
+                {
+                    throw new NexusException("Unknown element type '" + type + "'", 400);
+                }
+
+                string command = "var !!nexusQ collect all " + type
+                    + (where != null ? " with (" + where + ")" : "")
+                    + (scope != null ? " for " + scope : "");
+
+                if (!ac.Command.CreateCommand(command).RunInPdms())
+                {
+                    ac.Command.OutputAndClearError();
+                    throw new NexusException("PML collect failed (check the where condition and scope): " + command, 400);
+                }
+
+                string[] refs = ac.Command.GetStringArrayFromPML("!!nexusQ");
+
+                // best-effort cleanup of the temporary global
+                if (!ac.Command.CreateCommand("!!nexusQ.delete()").RunInPdms())
+                {
+                    ac.Command.OutputAndClearError();
+                }
+                return refs;
+            });
+        }
+
+        public Dictionary<string, object> ReadAttributes(string dbref, IList<string> attributes)
+        {
+            return AvevaGate.Run(() =>
+            {
+                var values = new Dictionary<string, object>();
+                DbElement element = DbElement.GetElement(dbref);
+                foreach (string name in attributes)
+                {
+                    object value = null;
+                    try
+                    {
+                        DbAttribute attribute = DbAttribute.GetDbAttribute(name);
+                        if (attribute != null && element.IsValid)
+                        {
+                            value = element.GetAsString(attribute);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        value = null;
+                    }
+                    values[name] = value;
+                }
+                return values;
             });
         }
 

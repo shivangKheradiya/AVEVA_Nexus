@@ -173,11 +173,26 @@ namespace AVEVA_Nexus.Http
         }
 
 
+        private static void RequireMethod(RouteContext context, string method)
+        {
+            if (!string.Equals(context.Method, method, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new NexusException($"Method {context.Method} not allowed; use {method}", 405);
+            }
+        }
+
         private object RouteElement(
             RouteContext context,
             string[] segments)
         {
             Console.WriteLine("Inside RouteElement");
+
+            if (segments.Length >= 3 &&
+                segments[2].Equals("Query", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireMethod(context, "POST");
+                return _element.Query(context.Body);
+            }
 
             if (segments.Length >= 3 &&
                 segments[2].Equals(
