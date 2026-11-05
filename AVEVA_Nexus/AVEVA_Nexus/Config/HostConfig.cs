@@ -35,7 +35,7 @@ namespace AVEVA_Nexus.Config
         [PMLNetCallable()]
         public void Stop()
         {
-            _host?.Start();
+            _host?.Stop();
         }
     }
 }

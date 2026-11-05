@@ -6,7 +6,6 @@ using System;
 using System.IO;
 using System.Net;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,8 +18,19 @@ namespace AVEVA_Nexus.Http
 
         public static string Prefix = "http://localhost:5000/";
 
+        // Shared secret expected in the X-Nexus-Token header (env NEXUS_TOKEN).
+        private static string Token =>
+            Environment.GetEnvironmentVariable("NEXUS_TOKEN");
+
         public void Start()
         {
+            bool localOnly = Prefix.StartsWith("http://localhost")
+                          || Prefix.StartsWith("http://127.0.0.1");
+
+            if (!localOnly && string.IsNullOrEmpty(Token))
+                throw new InvalidOperationException(
+                    "NEXUS_TOKEN must be set when listening on non-local prefixes.");
+
             _cts = new CancellationTokenSource();
 
             _listener = new HttpListener();
@@ -82,6 +92,33 @@ namespace AVEVA_Nexus.Http
                 string path =
                     context.Request.Url.AbsolutePath;
 
+                // CORS: lets browser-based clients (which send a preflight OPTIONS
+                // because of the custom X-Nexus-Token header) talk to the gateway.
+                // Access is still protected by the token.
+                context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                context.Response.Headers["Access-Control-Allow-Headers"] = "X-Nexus-Token, Content-Type";
+                context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+
+                if (context.Request.HttpMethod == "OPTIONS")
+                {
+                    context.Response.StatusCode = 204;
+                    context.Response.Close();
+                    return;
+                }
+
+                bool isHealth = path.Equals("/api/Health", StringComparison.OrdinalIgnoreCase);
+
+                if (!isHealth && !string.IsNullOrEmpty(Token)
+                    && context.Request.Headers["X-Nexus-Token"] != Token)
+                {
+                    await WriteResponse(context, 401, new ApiResponse
+                    {
+                        Success = false,
+                        Error = "Unauthorized"
+                    });
+                    return;
+                }
+
                 NexusLogger.Info(
                     $"{context.Request.HttpMethod} {path}");
 
@@ -138,12 +175,9 @@ namespace AVEVA_Nexus.Http
             object payload)
         {
             string json =
-                System.Text.Json.JsonSerializer.Serialize(
+                JsonConvert.SerializeObject(
                     payload,
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    });
+                    Formatting.Indented);
 
             byte[] buffer =
                 Encoding.UTF8.GetBytes(json);

@@ -94,6 +94,11 @@ namespace AVEVA_Nexus.Http
                     400);
             }
 
+            if (segments[1].Equals("Health", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ApiResponse { Success = true, Data = "ok" };
+            }
+
             Console.WriteLine($"Root Segment = {segments[0]}");
             Console.WriteLine($"Module       = {segments[1]}");
 
