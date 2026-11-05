@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using AVEVA_Nexus.Models;
+using System.Collections.Generic;
 
 namespace AVEVA_Nexus.Integration
 {
@@ -33,6 +34,10 @@ namespace AVEVA_Nexus.Integration
 
         // System attributes then UDAs (e.g. ":TP-MTO-AREA") valid for an element type. 400 if the type is unknown.
         string[] GetAttributeNames(string type);
+
+        // Project, MDB, user, module and version of the running session; anything unavailable is null.
+        // (ReadOnly is filled in by the service.)
+        SessionInfo GetSessionInfo();
 
         // Attribute values of one element as E3D text; unknown attribute or unreadable value -> null.
         Dictionary<string, object> ReadAttributes(string dbref, IList<string> attributes);

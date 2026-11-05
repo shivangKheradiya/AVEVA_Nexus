@@ -13,11 +13,13 @@ namespace AVEVA_Nexus.Http
     {
         private readonly PmlController _pml;
         private readonly ElementController _element;
+        private readonly SessionController _session;
 
         public Router()
         {
             _pml = new PmlController();
             _element = new ElementController();
+            _session = new SessionController();
         }
 
         //public object Route(RouteContext context)
@@ -116,6 +118,14 @@ namespace AVEVA_Nexus.Http
             {
                 Console.WriteLine("Routing to Element");
                 return RouteElement(context, segments);
+            }
+
+            if (segments[1].Equals("Session", StringComparison.OrdinalIgnoreCase) &&
+                segments.Length >= 3 &&
+                segments[2].Equals("Info", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireMethod(context, "GET");
+                return _session.Info();
             }
 
             throw new NexusException(

@@ -1,4 +1,5 @@
 ﻿using AVEVA_Nexus.Exceptions;
+using AVEVA_Nexus.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -130,6 +131,31 @@ namespace AVEVA_Nexus.Integration
                 }
                 return refs;
             });
+        }
+
+        // Module has no PML/API accessor; the TTY module process runs with "-modulename=Design", so it is read from
+        // the command line. Version comes from the running executable. Each value is null if unavailable.
+        public SessionInfo GetSessionInfo()
+        {
+            return AvevaGate.Run(() => new SessionInfo
+            {
+                Project = Safe(() => Project.CurrentProject.Code),
+                Mdb = Safe(() => MDB.CurrentMDB.Name),
+                User = Safe(() => Project.CurrentProject.UserName),
+                Module = Safe(() =>
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(
+                        Environment.CommandLine, @"-modulename=(\S+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    return match.Success ? match.Groups[1].Value : null;
+                }),
+                E3dVersion = Safe(() => System.Diagnostics.Process.GetCurrentProcess().MainModule.FileVersionInfo.ProductVersion)
+            });
+        }
+
+        private static string Safe(Func<string> read)
+        {
+            try { return read(); }
+            catch (Exception) { return null; }
         }
 
         public bool ElementExists(string dbref)

@@ -93,6 +93,10 @@
     <Compile Include="Http\RouteContext.cs" />
     <Compile Include="Http\Router.cs" />
     <Compile Include="Config\HostConfig.cs" />
+    <Compile Include="Config\ReadOnlyMode.cs" />
+    <Compile Include="Controllers\SessionController.cs" />
+    <Compile Include="Models\SessionInfo.cs" />
+    <Compile Include="Services\SessionService.cs" />
     <Compile Include="Integration\AvevaGate.cs" />
     <Compile Include="Integration\AvevaProvider.cs" />
     <Compile Include="Integration\IAvevaProvider.cs" />
