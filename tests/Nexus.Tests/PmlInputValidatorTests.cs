@@ -102,6 +102,45 @@ namespace Nexus.Tests
                 Check.Equal("HANDLER EQ 2", PmlInputValidator.Where("HANDLER EQ 2"), "HANDLER contains HANDLE");
             });
 
+            Program.Run("Where_rejects_parenthesis_breakout_hidden_in_strings", () =>
+            {
+                // Review finding: parentheses inside string literals were counted, so this balanced and passed,
+                // while PML closes the with(...) group at the first ')' after the string.
+                foreach (var bad in new[] { "NAME EQ |(|) DESC |x|", "NAME EQ '(') DESC 'x'", "NAME EQ |)| ) (" })
+                    Rejects(() => PmlInputValidator.Where(bad), "Where(" + bad + ")");
+            });
+
+            Program.Run("Where_ignores_parentheses_inside_strings", () =>
+            {
+                Check.Equal("NAME EQ |(x)|", PmlInputValidator.Where("NAME EQ |(x)|"), "pipes");
+                Check.Equal("NAME EQ '))' OR NAME EQ '(('", PmlInputValidator.Where("NAME EQ '))' OR NAME EQ '(('"), "quotes");
+            });
+
+            Program.Run("Where_rejects_unterminated_strings", () =>
+            {
+                foreach (var bad in new[] { "NAME EQ |abc", "NAME EQ 'abc", "(NAME EQ |a|) AND 'b" })
+                    Rejects(() => PmlInputValidator.Where(bad), "Where(" + bad + ")");
+            });
+
+            Program.Run("Where_rejects_pml_variables_objects_and_method_calls", () =>
+            {
+                foreach (var bad in new[] { "!!x EQ 1", "NAME EQ !a", "OBJECT FILE(|x|) EQ 1", "NAME.size() GT 1", "x .copy ( 1 )" })
+                    Rejects(() => PmlInputValidator.Where(bad), "Where(" + bad + ")");
+            });
+
+            Program.Run("Where_rejects_more_modifying_words", () =>
+            {
+                foreach (var bad in new[] { "RENAME x", "copy x", "MOVE y", "include z", "reorder", "claim", "unclaim" })
+                    Rejects(() => PmlInputValidator.Where(bad), "Where(" + bad + ")");
+            });
+
+            Program.Run("Where_allows_forbidden_words_inside_strings_and_attribute_names", () =>
+            {
+                Check.Equal("NAME EQ |/NEW-TANK|", PmlInputValidator.Where("NAME EQ |/NEW-TANK|"), "word in string");
+                Check.Equal("NAME EQ '/DELETE ME'", PmlInputValidator.Where("NAME EQ '/DELETE ME'"), "word in quoted string");
+                Check.Equal(":NEW-FLAG EQ 1", PmlInputValidator.Where(":NEW-FLAG EQ 1"), "word inside a UDA name");
+            });
+
             Program.Run("Where_rejects_over_500_chars", () =>
                 Rejects(() => PmlInputValidator.Where("(" + new string('A', 500) + ")"), "too long"));
         }

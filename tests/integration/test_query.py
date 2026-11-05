@@ -96,6 +96,46 @@ def test_query_default_limit_is_100(api):
     assert len(body["Data"]["Rows"]) == min(100, body["Data"]["Total"])
 
 
+def test_query_nonexistent_scope_is_404(api):
+    # Review finding: PML answers an unknown scope with an empty result, so callers concluded "no pipes here".
+    assert query(api, type="PIPE", scope="=0/0")[0] == 404
+    status, body = query(api, type="PIPE", scope="/NO-SUCH-ELEMENT-NAME")
+    assert status == 404 and "not found" in body["Error"]
+    assert api("GET", "/api/Health")[0] == 200
+
+
+def test_query_scope_by_name_works(api):
+    # /CAR-480-PI is the name of site =201346360/1, which holds zones
+    status, body = query(api, type="ZONE", scope="/CAR-480-PI")
+    assert status == 200 and body["Data"]["Total"] >= 1
+    status, by_ref = query(api, type="ZONE", scope="=201346360/1")
+    assert by_ref["Data"]["Total"] == body["Data"]["Total"]
+
+
+def test_parallel_queries_do_not_interleave(api):
+    # Shared PML globals (!!nexusQ ...) must never mix results of simultaneous queries.
+    import concurrent.futures
+
+    cases = [
+        {"type": "SITE", "attributes": ["NAME"], "limit": 50},
+        {"type": "ZONE", "scope": "=201346360/1", "attributes": ["NAME"]},
+        {"type": "PIPE", "scope": ZONE_WITH_PIPES, "attributes": ["NAME", "BORE"], "limit": 50},
+    ]
+    serial = [query(api, **c)[1]["Data"] for c in cases]
+    assert len({d["Total"] for d in serial}) == 3  # the three cases really differ
+
+    def work(i):
+        status, body = query(api, **cases[i % 3])
+        return status, body["Data"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+        results = list(pool.map(work, range(30)))
+    for i, (status, data) in enumerate(results):
+        assert status == 200
+        assert data == serial[i % 3], f"result {i} differs from its serial run"
+    assert api("GET", "/api/Health")[0] == 200
+
+
 def test_query_requires_post_and_body(api):
     assert api("GET", "/api/Element/Query")[0] == 405
     assert api("POST", "/api/Element/Query", {})[0] == 400

@@ -16,9 +16,14 @@ namespace AVEVA_Nexus.Validation
 
         static readonly string[] Forbidden =
         {
-            "SAVEWORK", "DELETE", "REMOVE", "NEW", "UNDO", "STORE", "MACRO", "FINISH", "QUIT", "ONERROR", "HANDLE"
+            "SAVEWORK", "DELETE", "REMOVE", "NEW", "UNDO", "STORE", "MACRO", "FINISH", "QUIT", "ONERROR", "HANDLE",
+            "RENAME", "COPY", "MOVE", "INCLUDE", "REORDER", "CLAIM", "UNCLAIM", "OBJECT"
         };
-        static readonly Regex ForbiddenRx = new Regex("\\b(" + string.Join("|", Forbidden) + ")\\b", RegexOptions.IgnoreCase);
+        // Whole words only, and not when glued to an attribute/UDA name character: RENEWAL, HANDLER, :NEW-FLAG are fine.
+        static readonly Regex ForbiddenRx = new Regex(
+            "(?<![A-Za-z0-9_:\\-])(" + string.Join("|", Forbidden) + ")(?![A-Za-z0-9_\\-])", RegexOptions.IgnoreCase);
+        // x.method(...) : a call on an object, which can have side effects
+        static readonly Regex MethodCallRx = new Regex("\\.\\s*[A-Za-z_][A-Za-z0-9_]*\\s*\\(");
 
         const int MaxWhereLength = 500;
 
@@ -67,11 +72,37 @@ namespace AVEVA_Nexus.Validation
             string v = value.Trim();
 
             if (v.Length > MaxWhereLength) throw Bad("where condition (too long)");
-            if (v.IndexOfAny(new[] { ';', '\n', '\r', '$', '`' }) >= 0) throw Bad("where condition (forbidden character)");
-            if (ForbiddenRx.IsMatch(v)) throw Bad("where condition (forbidden word)");
+            if (v.IndexOfAny(new[] { ';', '\n', '\r', '$', '`', '!' }) >= 0) throw Bad("where condition (forbidden character)");
+
+            // Scan like PML does: the contents of '...' and |...| strings are data, so parentheses and words
+            // inside them must not count. Everything outside strings is "code" and is checked.
+            var code = new System.Text.StringBuilder();
+            char quote = '\0';
+            foreach (char c in v)
+            {
+                if (quote != '\0')
+                {
+                    if (c == quote) quote = '\0';
+                    code.Append(' ');
+                }
+                else if (c == '\'' || c == '|')
+                {
+                    quote = c;
+                    code.Append(' ');
+                }
+                else
+                {
+                    code.Append(c);
+                }
+            }
+            if (quote != '\0') throw Bad("where condition (unterminated string)");
+
+            string outside = code.ToString();
+            if (ForbiddenRx.IsMatch(outside)) throw Bad("where condition (forbidden word)");
+            if (MethodCallRx.IsMatch(outside)) throw Bad("where condition (method calls are not allowed)");
 
             int depth = 0;
-            foreach (char c in v)
+            foreach (char c in outside)
             {
                 if (c == '(') depth++;
                 else if (c == ')' && --depth < 0) break;

@@ -91,6 +91,7 @@
     <Compile Include="Exceptions\NexusException.cs" />
     <Compile Include="Exceptions\VariableNotFoundException.cs" />
     <Compile Include="Http\RouteContext.cs" />
+    <Compile Include="Http\CorsPolicy.cs" />
     <Compile Include="Http\Router.cs" />
     <Compile Include="Config\HostConfig.cs" />
     <Compile Include="Config\ReadOnlyMode.cs" />

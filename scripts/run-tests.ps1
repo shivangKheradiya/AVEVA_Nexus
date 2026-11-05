@@ -14,8 +14,10 @@ foreach ($d in 'Exceptions', 'Validation', 'Models', 'Query') {
     $p = Join-Path $src $d
     if (Test-Path $p) { $pure += (Get-ChildItem $p -Filter *.cs).FullName }
 }
-$ro = Join-Path $src 'Config\ReadOnlyMode.cs'
-if (Test-Path $ro) { $pure += $ro }
+foreach ($f in 'Config\ReadOnlyMode.cs', 'Http\CorsPolicy.cs') {
+    $p = Join-Path $src $f
+    if (Test-Path $p) { $pure += $p }
+}
 $tests = (Get-ChildItem (Join-Path $repo 'tests\Nexus.Tests') -Filter *.cs).FullName
 
 $exe = Join-Path $out 'Nexus.Tests.exe'

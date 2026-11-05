@@ -366,7 +366,8 @@ POST /api/PML/Run
 ```
 
 Runs the lines in order and then reads the listed global variables (names without `!!`). A failing line is
-recorded in `Errors` and the rest still run; the HTTP status stays 200.
+recorded in `Errors` and the rest still run; the HTTP status stays 200. Each line is a separate PML command, so
+multi-line blocks (`if`/`do`/`define function`) are not supported yet.
 
 ```json
 { "Success": true, "Data": { "Ok": true, "Errors": [], "Values": { "a": "abc", "n": 42.0 } } }
@@ -392,9 +393,12 @@ POST /api/Element/Query
 }
 ```
 
-`type` is required. `scope` is a dbref or a name starting with `/` (optional). `where` is a PML condition
-(optional; `;`, line breaks, `$`, and words such as `SAVEWORK`, `DELETE`, `NEW` are rejected). `limit` defaults to
-100 and is capped at 1000. The result is a table:
+`type` is required. `scope` is a dbref or a name starting with `/` (optional; 404 if it does not exist). `where` is
+a PML condition (optional). It is checked, not trusted: the text inside `'...'` and `|...|` strings is treated as
+data, and outside strings `;`, line breaks, `$`, `!` (PML variables), method calls and words such as `SAVEWORK`,
+`DELETE`, `NEW`, `OBJECT` are rejected, as are unbalanced parentheses and unterminated strings. This is a
+reasonable safeguard, not a guarantee; read-only mode should not be the only thing between an untrusted client
+and the model. `limit` defaults to 100 and is capped at 1000. The result is a table:
 
 ```json
 { "Total": 4, "Offset": 0, "Limit": 100, "Columns": ["dbref", "NAME", "BORE"],
@@ -587,10 +591,18 @@ Read from the environment of the E3D process.
 | Variable | Effect |
 |---|---|
 | `NEXUS_READONLY` | Read-only is **on unless this is exactly `0`**. In read-only mode `PML/Execute` and `PML/Run` answer 403; queries and variable reads keep working. |
-| `NEXUS_TOKEN` | If set, every request except `GET /api/Health` must send it in the `X-Nexus-Token` header. Required when the listener is not on `localhost`. |
+| `NEXUS_TOKEN` | If set, every request except `GET /api/Health` must send it in the `X-Nexus-Token` header, and browser clients are allowed (CORS `*`). Required when the listener is not on `localhost`. If **not** set, any request that carries an `Origin` header (a web page in a browser) is refused with 403 and no CORS headers are sent, so other web pages cannot read the model through your browser. The token travels in clear over plain HTTP. |
 | `NEXUS_PORT` | If set, the addin starts the HTTP server by itself on `http://+:<port>/` when it loads (no macro needed). Not covered by the tests yet; the supported way to start a session is still the launcher/macro. |
 
 All calls into E3D are serialised through one lock: simultaneous requests used to crash the E3D session.
+
+## Breaking changes (compared with the original project)
+
+- `POST /api/PML/Execute` and `POST /api/PML/Run` return 403 unless `NEXUS_READONLY=0`.
+- A failing `Execute` returns 400 (it used to answer `success: true`).
+- `GET /api/PML/Variable/Array/{name}` keeps the PML order and returns every element as text.
+- Variable names in the URL must match `[A-Za-z0-9_.]{1,64}`.
+- Without `NEXUS_TOKEN`, requests with an `Origin` header are refused.
 
 ## Build and test
 

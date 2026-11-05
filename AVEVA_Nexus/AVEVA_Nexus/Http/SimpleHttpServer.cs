@@ -92,12 +92,26 @@ namespace AVEVA_Nexus.Http
                 string path =
                     context.Request.Url.AbsolutePath;
 
-                // CORS: lets browser-based clients (which send a preflight OPTIONS
-                // because of the custom X-Nexus-Token header) talk to the gateway.
-                // Access is still protected by the token.
-                context.Response.Headers["Access-Control-Allow-Origin"] = "*";
-                context.Response.Headers["Access-Control-Allow-Headers"] = "X-Nexus-Token, Content-Type";
-                context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+                // CORS: lets browser-based clients (which send a preflight OPTIONS because of the custom
+                // X-Nexus-Token header) talk to the gateway, but only when a token protects it. Without a
+                // token, a request that declares a browser Origin is refused (see CorsPolicy).
+                string token = Token;
+                if (!CorsPolicy.IsOriginAllowed(token, context.Request.Headers["Origin"]))
+                {
+                    await WriteResponse(context, 403, new ApiResponse
+                    {
+                        Success = false,
+                        Error = "Cross-origin requests are refused when NEXUS_TOKEN is not set"
+                    });
+                    return;
+                }
+
+                if (CorsPolicy.SendCorsHeaders(token))
+                {
+                    context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                    context.Response.Headers["Access-Control-Allow-Headers"] = "X-Nexus-Token, Content-Type";
+                    context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+                }
 
                 if (context.Request.HttpMethod == "OPTIONS")
                 {
@@ -106,7 +120,7 @@ namespace AVEVA_Nexus.Http
                     return;
                 }
 
-                bool isHealth = path.Equals("/api/Health", StringComparison.OrdinalIgnoreCase);
+                bool isHealth = path.TrimEnd('/').Equals("/api/Health", StringComparison.OrdinalIgnoreCase);
 
                 if (!isHealth && !string.IsNullOrEmpty(Token)
                     && context.Request.Headers["X-Nexus-Token"] != Token)
@@ -116,6 +130,13 @@ namespace AVEVA_Nexus.Http
                         Success = false,
                         Error = "Unauthorized"
                     });
+                    return;
+                }
+
+                // Health needs no E3D access: answer it without building a Router (whose controllers create providers).
+                if (isHealth)
+                {
+                    await WriteResponse(context, 200, new ApiResponse { Success = true, Data = "ok" });
                     return;
                 }
 

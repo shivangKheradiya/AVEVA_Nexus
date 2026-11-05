@@ -40,6 +40,21 @@ def test_run_undefined_return_is_null(api):
     assert body["Data"]["Values"]["nxNeverDefined"] is None
 
 
+def test_parallel_runs_do_not_interleave_variables(api):
+    import concurrent.futures
+
+    def work(i):
+        status, body = run(api, f"!!nxR{i} = |v{i}|\n!!nxQ{i} = {i}", [f"nxR{i}", f"nxQ{i}"])
+        return i, status, body["Data"]["Values"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+        results = list(pool.map(work, range(20)))
+    for i, status, values in results:
+        assert status == 200
+        assert values == {f"nxR{i}": f"v{i}", f"nxQ{i}": i}
+    assert api("GET", "/api/Health")[0] == 200
+
+
 def test_run_input_validation(api):
     assert api("POST", "/api/PML/Run", {})[0] == 400
     assert run(api, "   ")[0] == 400

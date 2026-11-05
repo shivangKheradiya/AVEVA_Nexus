@@ -10,7 +10,13 @@ namespace AVEVA_Nexus.Integration
 {
     public class AvevaProvider : IAvevaProvider
     {
-        private ac.Command getCommand = ac.Command.CreateCommand("");
+        // Created lazily and only from code running inside AvevaGate: creating a Command is an E3D call, and
+        // providers are built on every request (outside the lock) by the router's controllers.
+        private ac.Command _getCommand;
+        private ac.Command getCommand
+        {
+            get { return _getCommand ?? (_getCommand = ac.Command.CreateCommand("")); }
+        }
 
         // Runs a PML command. RunInPdms() returns false for an invalid command (Command.Error carries no text),
         // so a failure is reported with the command itself.
@@ -103,6 +109,22 @@ namespace AVEVA_Nexus.Integration
             return _typeNames.Contains(type);
         }
 
+        // A scope is a dbref ("=123/45") or a name ("/SITE-NAME"). Called inside the gate.
+        private static bool ScopeExists(string scope)
+        {
+            try
+            {
+                DbElement element = scope.StartsWith("=")
+                    ? DbElement.GetElement(scope)
+                    : MDB.CurrentMDB.FindElement(scope);
+                return element != null && element.IsValid;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         public string[] CollectRefs(string type, string scope, string where)
         {
             return AvevaGate.Run(() =>
@@ -110,6 +132,12 @@ namespace AVEVA_Nexus.Integration
                 if (!IsKnownType(type))
                 {
                     throw new NexusException("Unknown element type '" + type + "'", 400);
+                }
+
+                // PML answers an unknown scope with an empty result, which callers read as "nothing here".
+                if (scope != null && !ScopeExists(scope))
+                {
+                    throw new NexusException("Scope '" + scope + "' not found", 404);
                 }
 
                 string command = "var !!nexusQ collect all " + type
