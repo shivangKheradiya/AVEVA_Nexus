@@ -147,6 +147,13 @@ namespace AVEVA_Nexus.Http
                     context.Body);
             }
 
+            if (segments.Length >= 3 &&
+                segments[2].Equals("Run", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireMethod(context, "POST");
+                return _pml.Run(context.Body);
+            }
+
             if (segments.Length >= 5 &&
                 segments[2].Equals("Variable",
                 StringComparison.OrdinalIgnoreCase))

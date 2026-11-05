@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using AVEVA_Nexus.Config;
 using AVEVA_Nexus.Exceptions;
 using AVEVA_Nexus.Models;
 using AVEVA_Nexus.Services;
@@ -20,9 +21,23 @@ namespace AVEVA_Nexus.Controllers
             _service = new PmlService();
         }
 
+        public ApiResponse Run(string json)
+        {
+            ReadOnlyMode.EnsureWritable();
+
+            RunRequest request = string.IsNullOrWhiteSpace(json)
+                ? null
+                : JsonConvert.DeserializeObject<RunRequest>(json);
+
+            // Success stays true even when some lines failed: the errors are part of the result.
+            return new ApiResponse { Success = true, Data = _service.Run(request) };
+        }
+
         public ApiResponse Execute(
             string json)
         {
+            ReadOnlyMode.EnsureWritable();
+
             ExecuteRequest request = string.IsNullOrWhiteSpace(json) ? null : JsonConvert.DeserializeObject<ExecuteRequest>(json);
 
             if (request == null || string.IsNullOrWhiteSpace(request.Command))

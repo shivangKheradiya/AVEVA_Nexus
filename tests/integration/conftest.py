@@ -2,6 +2,11 @@
 
 Markers:
   writable  - needs a session started with NEXUS_READONLY=0 (PML execution allowed)
+  readonly  - needs a session started without it (the default)
+
+Run both modes:
+  deploy-local.ps1 -Target <dir> -Writable   ->  python -m pytest tests/integration -m "not readonly"
+  deploy-local.ps1 -Target <dir>             ->  python -m pytest tests/integration -m "not writable"
 """
 import json
 import os
@@ -16,6 +21,7 @@ TOKEN = os.environ.get("NEXUS_TOKEN", "")
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "writable: needs a Nexus session started with NEXUS_READONLY=0")
+    config.addinivalue_line("markers", "readonly: needs a Nexus session started in the default read-only mode")
 
 
 def _request(method, path, body=None, timeout=60):

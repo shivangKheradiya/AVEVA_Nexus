@@ -133,6 +133,71 @@ namespace AVEVA_Nexus.Integration
             });
         }
 
+        public RunResult RunScript(IList<string> lines, IList<string> returnVariables)
+        {
+            return AvevaGate.Run(() =>
+            {
+                var result = new RunResult();
+                foreach (string line in lines)
+                {
+                    if (!ac.Command.CreateCommand(line).RunInPdms())
+                    {
+                        ac.Command.OutputAndClearError();
+                        result.Errors.Add("PML command failed: " + line);
+                    }
+                }
+                foreach (string name in returnVariables)
+                {
+                    result.Values[name] = ReadGlobal(name);
+                }
+                result.Ok = result.Errors.Count == 0;
+                return result;
+            });
+        }
+
+        // Typed read of a global variable: arrays as string[], REAL as double, BOOLEAN as bool, the rest as text.
+        // Undefined (or unreadable) variables give null.
+        private object ReadGlobal(string name)
+        {
+            if (!VariableExists(name))
+            {
+                return null;
+            }
+
+            string kind = QueryText("!!nexusKind = !!" + name + ".objectType()", "NEXUSKIND");
+            if (kind == "ARRAY")
+            {
+                return ac.Command.GetStringArrayFromPML("!!" + name);
+            }
+
+            string text = QueryText("!!nexusText = !!" + name + ".string()", "NEXUSTEXT");
+            if (text == null)
+            {
+                return null;
+            }
+            switch (kind)
+            {
+                case "REAL":
+                    double number;
+                    return double.TryParse(text, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out number) ? (object)number : text;
+                case "BOOLEAN":
+                    return string.Equals(text, "TRUE", StringComparison.OrdinalIgnoreCase);
+                default:
+                    return text;
+            }
+        }
+
+        private string QueryText(string command, string variable)
+        {
+            if (!ac.Command.CreateCommand(command).RunInPdms())
+            {
+                ac.Command.OutputAndClearError();
+                return null;
+            }
+            return getCommand.GetPMLVariableString(variable);
+        }
+
         // Module has no PML/API accessor; the TTY module process runs with "-modulename=Design", so it is read from
         // the command line. Version comes from the running executable. Each value is null if unavailable.
         public SessionInfo GetSessionInfo()
